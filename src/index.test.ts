@@ -932,7 +932,7 @@ describe('expertAvatarIndex', () => {
     expect(developmentIndex).toBe(expertAvatarIndexForDivision('engineering-code-reviewer', 'engineering'))
   })
 
-  it('321 位专家覆盖全部头像，且分类池内均衡复用', () => {
+  it('325 位专家覆盖全部头像，且分类池内均衡复用', () => {
     const usage = new Map<number, number>()
     for (const expert of ROSTER) {
       const index = expertAvatarIndexForDivision(expert.slug, expert.division)

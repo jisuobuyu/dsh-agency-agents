@@ -362,6 +362,14 @@ export const ROSTER: ReadonlyArray<RosterEntry> = [
     "descriptionEn": "Senior backend architect specializing in scalable system design, database architecture, API development, and cloud infrastructure. Builds robust, secure, performant server-side applications and microservices"
   },
   {
+    "slug": "engineering-backend-architect-storage-cpp",
+    "nameEn": "Backend Architect (Storage/C++)",
+    "emoji": "🏗️",
+    "division": "engineering",
+    "description": "面向 C/C++ 存储方向的资深后端架构师，从内存布局、缓存行、I/O 路径出发设计存储引擎、持久化数据结构与底层基础设施。",
+    "descriptionEn": "Battle-hardened backend architect specializing in C/C++ storage systems — LSM/B+ trees, WAL, compaction, memory ownership, concurrency models, and I/O paths that survive production failure modes."
+  },
+  {
     "slug": "engineering-cms-developer",
     "nameEn": "CMS Developer",
     "emoji": "🧱",
@@ -792,6 +800,22 @@ export const ROSTER: ReadonlyArray<RosterEntry> = [
     "division": "engineering",
     "description": "负责系统稳定性保障，制定 SLO 与错误预算，建设监控可观测性，做故障演练并减少重复运维工作。",
     "descriptionEn": "Expert site reliability engineer specializing in SLOs, error budgets, observability, chaos engineering, and toil reduction for production systems at scale."
+  },
+  {
+    "slug": "engineering-storage-engine-engineer",
+    "nameEn": "Storage Engine Engineer",
+    "emoji": "💾",
+    "division": "engineering",
+    "description": "存储引擎专家，在写路径、compaction 调度与恢复正确性中思考——对持久性偏执、对写放大执着，深知磁盘会撒谎、fsync 并不免费。",
+    "descriptionEn": "Storage engine specialist who designs, implements, and operates crash-consistent, space-efficient persistence layers — LSM/B+ trees, WAL, compaction, and recovery — for sustained write-heavy workloads."
+  },
+  {
+    "slug": "engineering-systems-programmer",
+    "nameEn": "Systems Programmer",
+    "emoji": "🔧",
+    "division": "engineering",
+    "description": "底层系统程序员，以字节、指针和 ABI 契约为思维单位，编写正确优先、性能其次的 C/C++——内存分配器、线程池、IPC 与共享内存数据结构。",
+    "descriptionEn": "Low-level systems programmer who thinks in bytes, pointers, and ABI contracts. Writes correct-first, fast-second C/C++ — allocators, thread pools, IPC, shared-memory structures — sanitizer-clean and UB-free."
   },
   {
     "slug": "engineering-technical-writer",
@@ -2424,6 +2448,14 @@ export const ROSTER: ReadonlyArray<RosterEntry> = [
     "division": "testing",
     "description": "对系统和应用进行压测与基准测量，定位响应慢、吞吐低的环节，给出调优建议并验证优化后的效果。",
     "descriptionEn": "Expert performance testing and optimization specialist focused on measuring, analyzing, and improving system performance across all applications and infrastructure"
+  },
+  {
+    "slug": "testing-performance-benchmarker-systems-cpp",
+    "nameEn": "Performance Benchmarker (Systems/C++)",
+    "emoji": "📊",
+    "division": "testing",
+    "description": "面向 C/C++ 系统方向的性能工程师，用 perf、火焰图、eBPF 与硬件计数器做严谨、可复现、硬件感知的性能测量与调优。",
+    "descriptionEn": "Performance engineer for C/C++ backend systems — from syscall-level I/O to application throughput — using perf, flamegraphs, eBPF, and hardware counters with rigorous, reproducible methodology."
   },
   {
     "slug": "testing-reality-checker",
