@@ -59,7 +59,7 @@ const builtin: ExpertSummary = {
 const input = {
   name: "租赁业务顾问",
   description: "订单与运营建议",
-  division: "specialized",
+  division: "engineering",
   emoji: "📦",
   avatar: 0,
   prompt: "请按租赁业务规则分析，不编造事实。",
@@ -211,7 +211,7 @@ describe("自定义专家召唤标签", () => {
       slug: "custom-example",
       name: "租赁业务顾问",
       nameEn: "租赁业务顾问",
-      division: "specialized",
+      division: "engineering",
       emoji: "📦",
       custom: true,
     };
@@ -226,7 +226,7 @@ describe("自定义专家召唤标签", () => {
       slug: "custom-example",
       name: "顾问",
       nameEn: "顾问",
-      division: "specialized",
+      division: "engineering",
       emoji: "",
       custom: true,
     };

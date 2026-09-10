@@ -43,27 +43,8 @@ export const name = 'agency-agents'
 export const inject = ['tools', 'subagents', 'systemPrompt', 'settings', 'webServer']
 
 export const DEFAULT_DIVISIONS = [
-  'academic',
-  'company',
-  'design',
   'engineering',
-  'finance',
-  'game-development',
-  'gis',
-  'healthcare',
-  'hr',
-  'legal',
-  'marketing',
-  'paid-media',
-  'product',
-  'project-management',
-  'research',
-  'sales',
   'security',
-  'spatial-computing',
-  'specialized',
-  'support',
-  'supply-chain',
   'testing',
 ]
 

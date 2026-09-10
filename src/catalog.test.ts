@@ -21,22 +21,32 @@ async function readPersona(locale: 'en' | 'zh', division: string, slug: string):
 }
 
 describe('内置专家名册', () => {
-  it('融合参考库中的 325 位正式专家，且不包含文档与流程模板', () => {
+  it('仅保留 16 位分布式存储岗位相关专家', () => {
     const slugs = new Set(ROSTER.map((expert) => expert.slug))
-    expect(ROSTER).toHaveLength(325)
-    expect(slugs.has('engineering-knowledge-graph-engineer')).toBe(true)
-    expect(slugs.has('specialized-master-plan-architect')).toBe(true)
-    expect(slugs.has('research-synthesist')).toBe(true)
-    expect(slugs.has('engineering-dingtalk-integration-developer')).toBe(true)
-    expect(slugs.has('marketing-wechat-operator')).toBe(true)
-    expect(slugs.has('specialized-meeting-assistant')).toBe(true)
-    expect(slugs.has('chief-executive-officer')).toBe(true)
-    expect(slugs.has('chief-technology-officer')).toBe(true)
-    expect(slugs.has('hr-recruiter')).toBe(true)
-    expect(slugs.has('legal-contract-reviewer')).toBe(true)
-    expect(slugs.has('supply-chain-route-optimizer')).toBe(true)
+    expect(ROSTER).toHaveLength(16)
+    // 岗位核心：C/C++ 系统级、分布式文件/对象存储、性能、可靠性、安全
+    expect(slugs.has('engineering-distributed-file-object-storage-engineer')).toBe(true)
+    expect(slugs.has('engineering-backend-architect-storage-cpp')).toBe(true)
+    expect(slugs.has('engineering-backend-architect')).toBe(true)
+    expect(slugs.has('engineering-storage-engine-engineer')).toBe(true)
+    expect(slugs.has('engineering-systems-programmer')).toBe(true)
+    expect(slugs.has('engineering-software-architect')).toBe(true)
+    expect(slugs.has('engineering-sre')).toBe(true)
+    expect(slugs.has('engineering-database-reliability-engineer')).toBe(true)
+    expect(slugs.has('engineering-code-reviewer')).toBe(true)
+    expect(slugs.has('testing-performance-benchmarker-systems-cpp')).toBe(true)
+    expect(slugs.has('testing-performance-benchmarker')).toBe(true)
+    expect(slugs.has('security-architect')).toBe(true)
+    expect(slugs.has('security-appsec-engineer')).toBe(true)
+    // 已清理的无关方向专家
+    expect(slugs.has('design-ui-designer')).toBe(false)
+    expect(slugs.has('specialized-mcp-builder')).toBe(false)
+    expect(slugs.has('product-manager')).toBe(false)
+    expect(slugs.has('engineering-frontend-developer')).toBe(false)
+    expect(slugs.has('engineering-wordpress-shopping-cart')).toBe(false)
+    expect(slugs.has('security-penetration-tester')).toBe(false)
+    expect(slugs.has('research-synthesist')).toBe(false)
     expect(slugs.has('backend-architect-with-memory')).toBe(false)
-    expect(slugs.has('phase-0-discovery')).toBe(false)
   })
 
   it('中英文调用名称在名册内唯一', () => {
@@ -46,7 +56,7 @@ describe('内置专家名册', () => {
     expect(new Set(englishNames).size).toBe(englishNames.length)
   })
 
-  it('325 位专家均有纯英文名称、简介和 persona', async () => {
+  it('16 位专家均有纯英文名称、简介和 persona', async () => {
     const invalidNames = ROSTER.filter((expert) => HAN_PATTERN.test(expert.nameEn)).map((expert) => expert.slug)
     const invalidDescriptions = ROSTER
       .filter((expert) => HAN_PATTERN.test(expert.descriptionEn || expert.description))
@@ -61,7 +71,7 @@ describe('内置专家名册', () => {
     expect(invalidPersonas).toEqual([])
   })
 
-  it('325 位专家均有中文显示名和中文主导 persona', async () => {
+  it('16 位专家均有中文显示名和中文主导 persona', async () => {
     const invalidNames = ROSTER
       .filter((expert) => !HAN_PATTERN.test(ZH_NAME[expert.slug] ?? ''))
       .map((expert) => expert.slug)

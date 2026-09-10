@@ -150,21 +150,18 @@ export const SETTINGS_GITHUB_LINKS = [
 }>
 
 const DIVISION_ORDER = [
-  'company', 'design', 'engineering', 'finance', 'game-development', 'gis',
-  'healthcare', 'hr', 'legal', 'marketing', 'paid-media', 'product', 'project-management',
-  'research', 'sales', 'security', 'spatial-computing', 'specialized', 'support', 'testing',
-  'supply-chain', 'academic',
+  'engineering', 'security', 'testing',
 ]
 
 type AvatarCategory = 'development' | 'design' | 'product' | 'research' | 'writing'
 
-/** 头像只按视觉领域分池，设置页筛选始终使用完整的 22 个原始分区。 */
+/** 头像只按视觉领域分池，设置页筛选使用保留的 3 个分区。 */
 const AVATAR_CATEGORY_DIVISIONS: Readonly<Record<AvatarCategory, ReadonlySet<string>>> = {
-  development: new Set(['engineering', 'game-development', 'gis', 'security', 'spatial-computing', 'testing']),
-  design: new Set(['design']),
-  product: new Set(['company', 'hr', 'product', 'project-management', 'sales', 'supply-chain', 'support']),
-  research: new Set(['academic', 'finance', 'healthcare', 'legal', 'research']),
-  writing: new Set(['marketing', 'paid-media', 'specialized']),
+  development: new Set(['engineering', 'security', 'testing']),
+  design: new Set<string>([]),
+  product: new Set<string>([]),
+  research: new Set<string>([]),
+  writing: new Set<string>([]),
 }
 
 interface ExpertView {

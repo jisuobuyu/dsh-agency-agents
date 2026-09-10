@@ -56,9 +56,9 @@ describe('Config', () => {
     expect(resolved).not.toHaveProperty('maxDepth')
   })
 
-  it('默认加载 research 分区', () => {
+  it('默认加载 engineering 分区', () => {
     const resolved = z.resolve({}, Config, {})[0] as { divisions: string[] }
-    expect(resolved.divisions).toContain('research')
+    expect(resolved.divisions).toContain('engineering')
   })
 
   it('宿主插件声明 settings 依赖，避免工具读取 locale 时被 Cordis 拒绝', () => {
@@ -268,7 +268,7 @@ describe('loadCatalog', () => {
   })
 
   it('未配置 root 时加载随包发布的智能体目录', async () => {
-    const map = await loadCatalog(resolveCatalogRoot(''), ['academic'])
+    const map = await loadCatalog(resolveCatalogRoot(''), ['engineering'])
     expect(map.size).toBeGreaterThan(0)
   })
 
@@ -400,9 +400,9 @@ describe('summon_expert', () => {
         },
       },
       systemPrompt: { section: () => undefined },
-      settings: alphaSettings(['chief-executive-officer'], 'zh'),
+      settings: alphaSettings(['engineering-code-reviewer'], 'zh'),
       inject: (_deps: unknown, cb: (sctx: unknown) => void) => {
-        cb({ settings: { register: () => ({ get: () => ({ enabled: ['chief-executive-officer'] }), watch: () => () => {} }) }, effect: () => () => {} })
+        cb({ settings: { register: () => ({ get: () => ({ enabled: ['engineering-code-reviewer'] }), watch: () => () => {} }) }, effect: () => () => {} })
       },
       reflect: {
         provide: (name: string, value: unknown) => {
@@ -412,14 +412,14 @@ describe('summon_expert', () => {
       },
     } as unknown as Context
 
-    apply(ctx, { root: '', provider: 'spawn', divisions: ['company'] })
+    apply(ctx, { root: '', provider: 'spawn', divisions: ['engineering'] })
     const summon = tools.find((tool) => (tool as { name?: string }).name === 'summon_expert') as {
       execute: (args: unknown, exec: unknown) => Promise<unknown>
     }
-    await expect(summon.execute({ expert: '首席执行官', task: '制定战略' }, { agent: {} })).resolves.toEqual({ expert: '首席执行官（CEO）', answer: 'done' })
+    await expect(summon.execute({ expert: '代码审查工程师', task: '审查这段代码' }, { agent: {} })).resolves.toEqual({ expert: '代码审查工程师', answer: 'done' })
 
-    const displayed = await promptSource!.getPrompt('chief-executive-officer', 'company', 'zh')
-    expect(displayed.prompt).toContain('首席执行官')
+    const displayed = await promptSource!.getPrompt('engineering-code-reviewer', 'engineering', 'zh')
+    expect(displayed.prompt).toContain('代码审查员')
     expect(startOptions?.persona).toBe(sanitize(displayed.prompt))
   })
 
@@ -706,7 +706,7 @@ describe('AgencyAgentsRemote（Host↔Client 读写链路）', () => {
       } as unknown as Context
       const remote = new AgencyAgentsRemote(ctx)
 
-      await expect(remote.getPrompt('chief-executive-officer', 'company')).rejects.toThrow(
+      await expect(remote.getPrompt('engineering-code-reviewer', 'engineering')).rejects.toThrow(
         formatHost(locale, 'error.personaSourceUnavailable'),
       )
     }
@@ -777,7 +777,7 @@ describe('宿主 i18n', () => {
   it('分区查询同时认 key、中文名和英文名', () => {
     expect(matchDivision('engineering', 'engineering')).toBe(true)
     expect(matchDivision(' 工程 ', 'engineering')).toBe(true)
-    expect(matchDivision('Game Development', 'game-development')).toBe(true)
+    expect(matchDivision('Security', 'security')).toBe(true)
     expect(matchDivision('en', 'engineering')).toBe(false)
   })
 
@@ -926,21 +926,23 @@ describe('expertAvatarIndex', () => {
 
   it('专家只在所属分类头像池内稳定映射', () => {
     const developmentIndex = expertAvatarIndexForDivision('engineering-code-reviewer', 'engineering')
-    const writingIndex = expertAvatarIndexForDivision('marketing-copywriter', 'marketing')
+    const securityIndex = expertAvatarIndexForDivision('security-architect', 'security')
     expect(EXPERT_AVATAR_POOL_INDEXES.development).toContain(developmentIndex)
-    expect(EXPERT_AVATAR_POOL_INDEXES.writing).toContain(writingIndex)
+    expect(EXPERT_AVATAR_POOL_INDEXES.development).toContain(securityIndex)
     expect(developmentIndex).toBe(expertAvatarIndexForDivision('engineering-code-reviewer', 'engineering'))
   })
 
-  it('325 位专家覆盖全部头像，且分类池内均衡复用', () => {
+  it('16 位专家在 development 头像池内均衡复用', () => {
     const usage = new Map<number, number>()
     for (const expert of ROSTER) {
       const index = expertAvatarIndexForDivision(expert.slug, expert.division)
       usage.set(index, (usage.get(index) ?? 0) + 1)
     }
 
-    expect(usage.size).toBe(36)
-    for (const pool of Object.values(EXPERT_AVATAR_POOL_INDEXES)) {
+    // 精简后仅保留 engineering/security/testing 三个分区，全部归入 development 头像池；其余池无对应分区。
+    const usedPools = [EXPERT_AVATAR_POOL_INDEXES.development]
+    expect(usage.size).toBe(usedPools.flat().length)
+    for (const pool of usedPools) {
       const counts = pool.map((index) => usage.get(index) ?? 0)
       expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1)
     }
@@ -975,7 +977,7 @@ describe('专家库目标稿样式契约', () => {
     const expectedDivisions = new Set(ROSTER.map((expert) => expert.division))
     const values = expertDivisionFilterValues()
     expect(values[0]).toBe('')
-    expect(values.at(-1)).toBe('academic')
+    expect(values.at(-1)).toBe('testing')
     expect(values).toHaveLength(expectedDivisions.size + 1)
     expect(new Set(values.slice(1))).toEqual(expectedDivisions)
     expect(CARD_SETTINGS_CSS).toContain('.aag-expert-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))')
@@ -1046,8 +1048,8 @@ describe('@ 菜单分组标题本地化', () => {
   })
 
   it('按当前语言返回分区显示名，未知分区回退原值', () => {
-    expect(inputTriggerSourceName('design', 'zh')).toBe('设计')
-    expect(inputTriggerSourceName('design', 'en')).toBe('Design')
+    expect(inputTriggerSourceName('engineering', 'zh')).toBe('工程')
+    expect(inputTriggerSourceName('engineering', 'en')).toBe('Engineering')
     expect(inputTriggerSourceName('custom', 'zh')).toBe('custom')
   })
 
