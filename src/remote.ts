@@ -4,9 +4,9 @@ import type { TypertContribution } from '@deepseek-ai/dsh-typert-registry'
 import type {} from '@deepseek-ai/dsh-typert-registry'
 import { AGENCY_AGENTS_DESCRIPTORS } from './remote-contract.js'
 import { AGENCY_PERSONA_SERVICE, type AgencyPersonaSource } from './index.js'
-import { formatHost, readHostLocale } from './i18n.js'
+import { formatHost, readHostLocale, resolvePersonaLocale } from './i18n.js'
 import { settingsNamespaceCompat } from './settings-compat.js'
-import { AGENCY_LIBRARY_SERVICE, type AgencyExpertLibrary } from './expert-library.js'
+import { AGENCY_LIBRARY_SERVICE, type AgencyExpertLibrary, type PersonaLocale } from './expert-library.js'
 import type { CatalogSnapshot, CustomExpertInput } from './expert-contract.js'
 
 export { readExpertPrompt, readLocalizedExpertPrompt } from './index.js'
@@ -93,6 +93,19 @@ export default class AgencyAgentsRemote extends TypertRemoteService {
   /** 按需读取一位专家的 persona 正文，避免将完整提示词随客户端名册预加载。 */
   @Remote('getPrompt')
   async getPrompt(slug: string, division: string): Promise<{ prompt: string }> {
-    return personaSource(this.ctx).getPrompt(slug, division, readHostLocale(this.ctx))
+    const value = this.ctx.settings.get(AGENCY_SETTINGS_NAMESPACE) as { personaLocale?: unknown } | undefined
+    return personaSource(this.ctx).getPrompt(slug, division, resolvePersonaLocale(value?.personaLocale, readHostLocale(this.ctx)))
+  }
+
+  /** 读取人设语言设置（follow/zh/en）及当前修订号。 */
+  @Remote('getPersonaLocale')
+  getPersonaLocale(): { personaLocale: PersonaLocale; revision: number } {
+    return this.library().getPersonaLocale()
+  }
+
+  /** 更新人设语言设置；过期修订号拒绝写入。 */
+  @Remote('setPersonaLocale')
+  async setPersonaLocale(personaLocale: PersonaLocale, expectedRevision: number): Promise<{ personaLocale: PersonaLocale; revision: number }> {
+    return this.library().setPersonaLocale(personaLocale, expectedRevision)
   }
 }

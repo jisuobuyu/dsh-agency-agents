@@ -10,6 +10,11 @@ const enabledStateSchema = z.object({
 const expertPromptSchema = z.object({
   prompt: z.string(),
 })
+const personaLocaleSchema = z.enum(['follow', 'zh', 'en'])
+const personaLocaleStateSchema = z.object({
+  personaLocale: personaLocaleSchema,
+  revision: z.number().int().min(0),
+})
 
 /** 新接口仍沿用宿主 Typert 严格参数校验与既有鉴权入口。 */
 function catalogMethod(method: string, parameters: InvocationDescriptor['parameters']): InvocationDescriptor {
@@ -58,6 +63,27 @@ export const AGENCY_AGENTS_DESCRIPTORS = [
       { name: 'expectedRevision', wire: 'expectedRevision', source: 'json', codec: { mode: 'strict', typeSymbol: 'number', schema: z.number().int().min(0) } },
     ],
     result: { mode: 'strict', typeSymbol: 'AgencyAgentsEnabledState', schema: enabledStateSchema },
+  },
+  {
+    id: '@michengai/dsh-agency-agents#agencyAgents/getPersonaLocale',
+    service: 'agencyAgents',
+    namespace: 'agencyAgents',
+    method: 'getPersonaLocale',
+    invocation: { kind: 'direct' },
+    parameters: [],
+    result: { mode: 'strict', typeSymbol: 'AgencyAgentsPersonaLocaleState', schema: personaLocaleStateSchema },
+  },
+  {
+    id: '@michengai/dsh-agency-agents#agencyAgents/setPersonaLocale',
+    service: 'agencyAgents',
+    namespace: 'agencyAgents',
+    method: 'setPersonaLocale',
+    invocation: { kind: 'direct' },
+    parameters: [
+      { name: 'personaLocale', wire: 'personaLocale', source: 'json', codec: { mode: 'strict', typeSymbol: 'string', schema: personaLocaleSchema } },
+      revisionParameter,
+    ],
+    result: { mode: 'strict', typeSymbol: 'AgencyAgentsPersonaLocaleState', schema: personaLocaleStateSchema },
   },
   {
     id: '@michengai/dsh-agency-agents#agencyAgents/getPrompt',

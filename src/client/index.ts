@@ -16,7 +16,7 @@ import { ZH_NAME, ZH_DIVISION, EN_DIVISION } from '../names.js'
 import { EXPERT_AVATAR_URLS } from './avatars.js'
 import { ROSTER } from './roster.js'
 import { zh, en, type AgencyKey } from './locales.js'
-import { TYPERT_REMOTE, type AgencyAgentsEnabledState, type AgencyAgentsPrompt } from './remote.js'
+import { TYPERT_REMOTE, type AgencyAgentsEnabledState, type AgencyAgentsPersonaLocaleState, type AgencyAgentsPrompt, type AgencyPersonaLocale } from './remote.js'
 import { observePluginUpdate, type PluginUpdateIconName } from './plugin-update-ui.js'
 import { DEFAULT_EXPERT_EMOJI, type CustomExpertInput, type CatalogSnapshot } from '../expert-contract.js'
 import { CustomExpertEditor, CustomDeleteDialog, CUSTOM_EDITOR_CSS } from './custom-editor.js'
@@ -311,11 +311,11 @@ export function expertAvatarIndex(slug: string, avatarCount: number): number {
 
 /** 五大业务分类各自使用独立头像池，降低同屏重复并保持专家形象稳定。 */
 export const EXPERT_AVATAR_POOL_INDEXES = {
-  development: [1, 5, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-  writing: [3, 7, 19, 20, 21, 22, 23, 24],
-  product: [0, 8, 25, 26, 27, 28],
-  research: [2, 4, 29, 30, 31, 32],
-  design: [6, 33, 34, 35],
+  development: [9, 11, 4, 13, 18, 30, 17, 8, 0, 7, 24, 1, 33, 29, 10, 16],
+  writing: [3, 19, 20, 21, 22, 23],
+  product: [25, 26, 27, 28, 5, 12],
+  research: [2, 31, 32, 14, 15],
+  design: [6, 34, 35],
 } as const satisfies Readonly<Record<AvatarCategory, ReadonlyArray<number>>>
 
 const ALL_EXPERT_AVATAR_INDEXES = Object.values(EXPERT_AVATAR_POOL_INDEXES).flat()
@@ -562,6 +562,8 @@ const CSS = COMPOSER_CSS + SETTINGS_CSS + CARD_SETTINGS_CSS
 interface AgencyAgentsRemoteApi extends AgencyCatalogRemote {
   getEnabled(): Promise<RemoteResult<AgencyAgentsEnabledState>>
   setEnabled(enabled: string[], expectedRevision: number): Promise<RemoteResult<AgencyAgentsEnabledState>>
+  getPersonaLocale(): Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
+  setPersonaLocale(personaLocale: AgencyPersonaLocale, expectedRevision: number): Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
   getPrompt(slug: string, division: string): Promise<RemoteResult<AgencyAgentsPrompt>>
 }
 
@@ -978,6 +980,7 @@ function ExpertCardsSettings(props: PropsLocale<'agency'> & {
   const [deleting, setDeleting] = React.useState<ExpertView | null>(null)
   const [deleteError, setDeleteError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
+  const [personaLocale, setPersonaLocale] = React.useState<AgencyPersonaLocale>('follow')
 
   const accept = (catalog: CatalogSnapshot): void => {
     const current = acceptCatalog(props.remote, catalog)
@@ -1024,17 +1027,25 @@ function ExpertCardsSettings(props: PropsLocale<'agency'> & {
       }).finally(() => { saving.current = false; setIsSaving(false) })
   }
 
+  const loadPersonaLocale = React.useCallback((): void => {
+    void props.remote.getPersonaLocale().then((result) => {
+      if (result.ok) setPersonaLocale(result.value.personaLocale)
+    }).catch(() => undefined)
+  }, [props.remote])
+
   const load = React.useCallback((): void => {
+    loadPersonaLocale()
     void readEnabled(props.remote).then((current) => {
       setState(current)
       setInitialOrder((order) => order ?? sortExpertsByEnabled(current.experts, current.enabled).map((expert) => expert.slug))
       setError(null)
       props.onEnabledChange?.(current.enabled)
     }).catch((err: unknown) => { setError(err instanceof Error ? err.message : String(err)) })
-  }, [props.onEnabledChange, props.remote])
+  }, [props.onEnabledChange, props.remote, loadPersonaLocale])
 
   React.useEffect(() => {
     let alive = true
+    loadPersonaLocale()
     void readEnabled(props.remote).then((current) => {
       if (!alive) return
       setState(current)
@@ -1042,7 +1053,7 @@ function ExpertCardsSettings(props: PropsLocale<'agency'> & {
       props.onEnabledChange?.(current.enabled)
     }).catch((err: unknown) => { if (alive) setError(err instanceof Error ? err.message : String(err)) })
     return () => { alive = false }
-  }, [props.onEnabledChange, props.remote])
+  }, [props.onEnabledChange, props.remote, loadPersonaLocale])
 
   React.useEffect(() => () => {
     if (copiedResetTimer.current !== undefined) clearTimeout(copiedResetTimer.current)
@@ -1073,6 +1084,39 @@ function ExpertCardsSettings(props: PropsLocale<'agency'> & {
         } catch {
           setState(previous)
           props.onEnabledChange?.(previous.enabled)
+          setError(writeErrorMessage(err, { refreshed: false, t: props.t }))
+        }
+      })
+      .finally(() => {
+        saving.current = false
+        setIsSaving(false)
+      })
+  }
+
+  const changePersonaLocale = (value: AgencyPersonaLocale): void => {
+    if (state === null || saving.current || value === personaLocale) return
+    const previous = personaLocale
+    saving.current = true
+    setIsSaving(true)
+    setPersonaLocale(value)
+    void props.remote.setPersonaLocale(value, state.revision)
+      .then(async (result) => {
+        if (!result.ok) throw new Error(result.error.message)
+        setPersonaLocale(result.value.personaLocale)
+        // 同一 namespace 修订号已推进，刷新启用状态快照以免后续写入冲突。
+        const refreshed = await readEnabled(props.remote)
+        setState(refreshed)
+        props.onEnabledChange?.(refreshed.enabled)
+        setError(null)
+      })
+      .catch(async (err: unknown) => {
+        setPersonaLocale(previous)
+        try {
+          const refreshed = await readEnabled(props.remote)
+          setState(refreshed)
+          props.onEnabledChange?.(refreshed.enabled)
+          setError(writeErrorMessage(err, { refreshed: true, t: props.t }))
+        } catch {
           setError(writeErrorMessage(err, { refreshed: false, t: props.t }))
         }
       })
@@ -1166,6 +1210,16 @@ function ExpertCardsSettings(props: PropsLocale<'agency'> & {
             { value: '', label: props.t('settings.filter.allStatuses') },
             { value: 'enabled', label: props.t('settings.enabled') },
             { value: 'disabled', label: props.t('settings.disabled') },
+          ],
+        })),
+      React.createElement('div', { className: 'aag-field aag-field-persona-locale' },
+        React.createElement('label', { className: 'aag-label', htmlFor: 'aag-persona-locale', title: props.t('settings.personaLocale.hint') }, props.t('settings.personaLocale')),
+        React.createElement(CategorySelect, {
+          id: 'aag-persona-locale', value: personaLocale, disabled: isSaving, onChange: (value) => changePersonaLocale(value as AgencyPersonaLocale),
+          options: [
+            { value: 'follow', label: props.t('settings.personaLocale.follow') },
+            { value: 'zh', label: props.t('settings.personaLocale.zh') },
+            { value: 'en', label: props.t('settings.personaLocale.en') },
           ],
         })),
       React.createElement('div', { className: 'aag-field aag-field-search' },

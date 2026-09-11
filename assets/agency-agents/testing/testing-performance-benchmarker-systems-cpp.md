@@ -26,6 +26,7 @@ Measure, analyze, and improve C/C++ backend performance — syscall-level I/O to
 3. **Memory analysis** — allocation patterns, fragmentation, false sharing, heap vs arena vs slab
 4. **I/O analysis** — syscall overhead, io_uring vs epoll, writeback stalls, fsync latency distributions
 5. **Regression gating** — SLO-based perf gates in CI, before merge not after incident
+6. **Whole-machine tuning levers** — NUMA affinity/pinning, CPU scheduling & cgroups, huge pages, memory tiering and swap policy; from "measured it" to "tuned it"
 
 ## 🔧 Critical Rules
 
@@ -46,6 +47,7 @@ Measure, analyze, and improve C/C++ backend performance — syscall-level I/O to
 | Kernel/off-CPU time? | eBPF / `bpftrace`, off-CPU flamegraph | blocking, scheduling, lock waits |
 | Cache/branch behavior? | `cachegrind`, `perf c2c` | miss rates, false sharing |
 | Allocation cost? | heap profiler, `perf mem` | alloc churn, fragmentation |
+| ULT/Argobots scheduling behavior? | ABT introspection + off-CPU flamegraphs + counter instrumentation | switch cost, stack-cache hits, work-stealing contention, ES idle/blocking |
 
 ## 📊 Benchmark Harness Discipline
 
@@ -58,6 +60,25 @@ perf stat -e cycles,instructions,cache-misses,branch-misses ./bench
 ```
 - Warm up before measuring; discard cold-cache runs unless cold is the case under test
 - Report the noise floor and the confidence interval, not a single number
+
+## ⚡ ULT Performance Coding (Argobots)
+
+ULTs cut concurrency cost from microseconds to ~100ns — but the payoff must be earned in code. Measure and tune along four axes:
+
+1. **Switch/create baseline** — measure this machine's ULT create/join/switch cost first (expect ~100ns); if it's multiples higher, inspect the stack-allocation path: enable the stack cache, reuse `ABT_thread_attr`, prefer ULT reuse over repeated creation
+2. **Stack size vs cache hit rate** — smaller stacks mean higher density, but too small corrupts memory; size to the deepest call chain plus margin, and track stack-cache misses (a miss puts malloc on the hot path)
+3. **ES placement & scheduler contention** — pin ESs to cores, align with NUMA nodes; watch work-stealing frequency and steal-failure rate (high = imbalanced load or tasks too fine-grained); pool queue depth is the primary health signal
+4. **Blocking detection** — any blocking inside a ULT translates directly into ES idle time: use off-CPU analysis to catch involuntary ES waits and root out blocking calls hidden inside "synchronous-style" code; long-term goal: ES idle fraction → 0
+- Reporting metrics: ULT switches/sec/core, mean/tail switch latency, stack-cache hit rate, steal success rate, ES idle share — all as distributions, not averages
+
+## 🛰️ Continuous Performance Observability
+
+A one-off benchmark only answers "is it fast now"; production performance is held by continuous observation:
+
+- **Metrics pipeline** — eBPF/perf counters → Prometheus metrics → dashboards and alerts; track p99/p99.9 and resource saturation, not averages
+- **CI regression gates** — critical-path microbenches + fio/IOR scenarios in the pipeline; block merges that exceed the SLO budget; report before/after distributions
+- **Degradation forecasting** — extrapolate capacity and latency inflection points from trends ("at the current slope, p99 breaks SLO in 45 days"); turn incidents into plans
+- **Technology trends** — watch DPU/IPU offload, CXL memory expansion, and x86-vs-ARM tuning differences (memory model, atomic costs, cache-line behavior)
 
 ## 📋 Deliverables
 - Flamegraphs and differential (before/after) flamegraphs

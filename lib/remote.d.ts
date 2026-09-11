@@ -1,4 +1,6 @@
 import { _ as readExpertPrompt, v as readLocalizedExpertPrompt } from "./index-D4dhi1A4.js";
+import schema from "@deepseek-ai/schemastery";
+import "@deepseek-ai/dsh-settings";
 import { z } from "zod";
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 import { Context } from "@deepseek-ai/cordis";
@@ -32,6 +34,10 @@ declare const catalogSnapshotSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CatalogSnapshot = z.infer<typeof catalogSnapshotSchema>;
 //#endregion
+//#region src/expert-library.d.ts
+/** 人设语言：follow 跟随界面，zh/en 强制锁定。 */
+type PersonaLocale = 'follow' | 'zh' | 'en';
+//#endregion
 //#region src/remote.d.ts
 /** 供客户端读取和保存已启用专家的顶层 Host Remote 服务。 */
 declare class AgencyAgentsRemote extends TypertRemoteService {
@@ -57,6 +63,16 @@ declare class AgencyAgentsRemote extends TypertRemoteService {
   /** 按需读取一位专家的 persona 正文，避免将完整提示词随客户端名册预加载。 */
   getPrompt(slug: string, division: string): Promise<{
     prompt: string;
+  }>;
+  /** 读取人设语言设置（follow/zh/en）及当前修订号。 */
+  getPersonaLocale(): {
+    personaLocale: PersonaLocale;
+    revision: number;
+  };
+  /** 更新人设语言设置；过期修订号拒绝写入。 */
+  setPersonaLocale(personaLocale: PersonaLocale, expectedRevision: number): Promise<{
+    personaLocale: PersonaLocale;
+    revision: number;
   }>;
 }
 //#endregion

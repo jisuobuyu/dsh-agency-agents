@@ -406,6 +406,13 @@ describe("兼容与恢复入口", () => {
     expect(() => validateAgencySettings({ enabled: [], customExperts: [record, { ...record, slug: 'custom-00000000-0000-4000-8000-000000000002' }] }, 'en')).toThrow('already in use');
     expect(customExpertInputSchema.safeParse({ ...input, slug: 'custom-' + 'f'.repeat(36) }).success).toBe(false);
   });
+  it("personaLocale 只接受 follow/zh/en，缺省合法", () => {
+    expect(() => validateAgencySettings({ enabled: [] })).not.toThrow();
+    expect(() => validateAgencySettings({ enabled: [], personaLocale: 'follow' })).not.toThrow();
+    expect(() => validateAgencySettings({ enabled: [], personaLocale: 'zh' })).not.toThrow();
+    expect(() => validateAgencySettings({ enabled: [], personaLocale: 'en' })).not.toThrow();
+    expect(() => validateAgencySettings({ enabled: [], personaLocale: 'fr' as never })).toThrow();
+  });
   it("自定义搜索不匹配内部 custom slug，名称仍可搜索", () => {
     const expert = { ...builtin, slug: 'custom-00000000-0000-4000-8000-000000000001', divisionEn: 'Engineering' };
     expect(matchExpertQuery(expert, 'custom')).toBe(false);

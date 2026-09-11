@@ -6,15 +6,22 @@ import { CUSTOM_EXPERT_LIMIT, CUSTOM_EXPERT_SLUG, customError, customExpertInput
 import { ZH_DIVISION } from './names.js'
 
 export const AGENCY_LIBRARY_SERVICE = 'agencyAgentsLibrary'
-export interface AgencySettings { enabled: string[]; customExperts?: CustomExpert[] }
+
+/** 人设语言：follow 跟随界面，zh/en 强制锁定。 */
+export type PersonaLocale = 'follow' | 'zh' | 'en'
+export const PERSONA_LOCALES: readonly PersonaLocale[] = ['follow', 'zh', 'en']
+
+export interface AgencySettings { enabled: string[]; customExperts?: CustomExpert[]; personaLocale?: PersonaLocale }
 
 /** 兼容只有 enabled 的旧配置；内容与启用状态在同一 namespace 原子持久化。 */
 export const agencySettingsSchema = schema.object({
   enabled: schema.array(schema.string()).default([]),
   customExperts: schema.array(schema.any()).default([]),
+  personaLocale: schema.string().default('follow'),
 })
 
-export function validateAgencySettings(value: AgencySettings, locale: 'zh' | 'en' = 'zh'): void {
+export function validateAgencySettings(value: Omit<AgencySettings, 'personaLocale'> & { personaLocale?: string }, locale: 'zh' | 'en' = 'zh'): void {
+  if (value.personaLocale !== undefined && !(PERSONA_LOCALES as readonly string[]).includes(value.personaLocale)) throw customError('invalid', locale)
   const records = z.array(customExpertSchema).parse(value.customExperts ?? [])
   if (records.filter(item => !item.deleted).length > CUSTOM_EXPERT_LIMIT) throw customError('limit', locale)
   const ids = new Set<string>()
@@ -37,6 +44,8 @@ export interface AgencyExpertLibrary {
   saveCustom(input: CustomExpertInput, enabled: boolean, expectedRevision: number): Promise<CatalogSnapshot>
   deleteCustom(slug: string, expectedRevision: number): Promise<CatalogSnapshot>
   setEnabled(enabled: string[], expectedRevision: number): Promise<{ enabled: string[]; revision: number }>
+  getPersonaLocale(): { personaLocale: PersonaLocale; revision: number }
+  setPersonaLocale(value: PersonaLocale, expectedRevision: number): Promise<{ personaLocale: PersonaLocale; revision: number }>
   cleanupDeleted(): Promise<void>
 }
 export const normalizeName = (value: string): string => value.trim().toLowerCase()
@@ -134,6 +143,21 @@ export function createExpertLibrary(
         { op: 'set', path: ['enabled'], value: next },
       ], expectedRevision)
       return { enabled: next, revision: store.revision() }
+    },
+    getPersonaLocale() {
+      const value = store.read().personaLocale
+      return { personaLocale: (value !== undefined && PERSONA_LOCALES.includes(value) ? value : 'follow') as PersonaLocale, revision: store.revision() }
+    },
+    async setPersonaLocale(value, expectedRevision) {
+      if (!PERSONA_LOCALES.includes(value)) throw customError('invalid', locale())
+      checkRevision(expectedRevision)
+      const state = read()
+      await store.mutate([
+        { op: 'set', path: ['customExperts'], value: activeRecords(state.customExperts) },
+        { op: 'set', path: ['enabled'], value: [...new Set(state.enabled)] },
+        { op: 'set', path: ['personaLocale'], value },
+      ], expectedRevision)
+      return { personaLocale: value, revision: store.revision() }
     },
     async cleanupDeleted() {
       // 修订号与同步读取绑定；排队期间发生其他写入时由宿主拒绝旧快照。

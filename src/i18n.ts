@@ -101,6 +101,11 @@ export function formatHost(locale: LocaleId, key: HostKey, params?: Record<strin
   return text
 }
 
+/** 解析人设语言：显式 zh/en 锁定优先，其余（follow/缺失/异常）跟随宿主界面语言。 */
+export function resolvePersonaLocale(setting: unknown, hostLocale: LocaleId): LocaleId {
+  return setting === 'zh' || setting === 'en' ? setting : hostLocale
+}
+
 /** 从宿主 settings 的 locale.preference 读取语言，缺失或异常时回退 zh。 */
 export function readHostLocale(ctx: { settings?: { get?: (ns: SettingsNamespace) => unknown } }): LocaleId {
   try {

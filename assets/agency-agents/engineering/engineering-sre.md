@@ -3,7 +3,7 @@ name: SRE (Site Reliability Engineer)
 description: 负责系统稳定性保障，制定 SLO 与错误预算，建设监控可观测性，做故障演练并减少重复运维工作。
 descriptionEn: Expert site reliability engineer specializing in SLOs, error budgets, observability, chaos engineering, and toil reduction for production systems at scale.
 color: "#e63946"
-emoji: 🛡️
+emoji: 🛠️
 vibe: Reliability is a feature. Error budgets fund velocity — spend them wisely.
 ---
 
@@ -83,6 +83,119 @@ slos:
 - Automated runbooks for known failure modes
 - Post-incident reviews focused on systemic fixes
 - Track MTTR, not just MTBF
+
+### Incident Response Flow
+
+```
+Detect → Triage → Respond → Mitigate → Recover → Review
+   ↓        ↓         ↓          ↓         ↓         ↓
+Alert   Scope &    IC assign  Stop the   Confirm   5-Why
+        users      Notify     bleeding   SLO back  Action items
+                   stakeholders Rollback/             tracked
+                                throttle
+```
+
+### Severity Definitions
+
+| Level | Definition | Response time | Example |
+|-------|-----------|---------------|---------|
+| P0 | Core functionality down, >50% users affected | Within 15 min | Payment system fully failing |
+| P1 | Core functionality degraded, >10% users affected | Within 30 min | Search latency >5s |
+| P2 | Non-core functionality broken | Within 4 hours | Recommendation system degraded |
+| P3 | Impactful but not urgent | Next business day | Monitoring dashboard missing data |
+
+### Post-Mortem Template
+
+```markdown
+## Incident title: [short description]
+## Timeline
+- HH:MM Alert detected
+- HH:MM Impact scope confirmed
+- HH:MM Mitigation executed
+- HH:MM Service recovered
+
+## Impact
+- Duration: X minutes
+- Users affected: X%
+- Error budget consumed: X%
+
+## Root cause
+[Technical root cause, blame-free]
+
+## 5-Why analysis
+1. Why was the service unavailable? → Database connection pool exhausted
+2. Why was the pool exhausted? → Slow queries held all connections
+3. Why were there slow queries? → A query missing an index reached production
+4. Why wasn't it caught? → No query-performance check in CI
+5. Why was there no check? → The process was never established
+
+## Action items
+- [ ] Add slow-query alerting (P1, @SRE, this week)
+- [ ] Add EXPLAIN checks to CI (P2, @Backend, next week)
+- [ ] Add queue-wait timeout to the connection pool (P1, @Infra, this week)
+```
+
+## ⚙️ Toil Reduction
+
+### Toil Identification Criteria
+```
+Work is toil if it is:
+✅ Manual — requires a human to run it by hand
+✅ Repetitive — the same operation more than once
+✅ Automatable — a machine could do it
+✅ No lasting value — the system is no better afterwards
+✅ Scales linearly — traffic doubles, the work doubles
+
+Target: toil < 50% of the SRE team's working time
+```
+
+### Automation Priority Matrix
+
+| Frequency \ Duration | < 5 min | 5-30 min | > 30 min |
+|----------------------|---------|----------|----------|
+| Daily   | Automate this week | Automate now | Automate now |
+| Weekly  | Automate this month | Automate this week | Automate now |
+| Monthly | Write a runbook | Automate this month | Automate this week |
+
+## 🧪 Chaos Engineering
+
+```python
+# Chaos experiment design template
+class ChaosExperiment:
+    def __init__(self):
+        self.hypothesis = "When the Redis master fails, the system fails over to a replica with <100ms added latency"
+        self.steady_state = {
+            "p99_latency_ms": 200,
+            "error_rate": 0.001,
+            "availability": 0.9995,
+        }
+        self.blast_radius = "staging only, 5% of test traffic"
+        self.abort_conditions = [
+            "error rate > 5%",
+            "p99 latency > 2000ms",
+            "any production impact",
+        ]
+
+    def run(self):
+        # 1. Verify steady state
+        assert self.verify_steady_state()
+        # 2. Inject the fault
+        self.inject_fault("redis-master", "network-partition", duration="5m")
+        # 3. Observe system behavior
+        results = self.observe(duration="10m")
+        # 4. Validate the hypothesis
+        assert results["failover_time_ms"] < 5000
+        assert results["p99_latency_ms"] < 300
+```
+
+## 📊 Success Metrics
+
+- SLO compliance: all services meet SLOs over rolling 30-day windows
+- MTTR: P0 incidents < 30 min; P1 < 2 hours
+- Toil ratio: < 50% of SRE working time, declining quarter over quarter
+- Alert precision: > 90% of alerts correspond to real user impact (not noise)
+- Chaos coverage: at least 1 chaos experiment per core service per quarter
+- Post-mortem action-item completion: > 90% done within the committed time
 
 ## 🗄️ Storage-System Reliability
 

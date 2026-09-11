@@ -34,7 +34,7 @@ import { fileURLToPath } from 'node:url'
 import { TextDecoder } from 'node:util'
 import { ZH_DIVISION, ZH_NAME } from './names.js'
 export { ZH_NAME }
-import { formatHost, localizedExpertDescription, localizedExpertName, matchDivision, readHostLocale, renderExpertList, renderSummonResults, type LocaleId } from './i18n.js'
+import { formatHost, localizedExpertDescription, localizedExpertName, matchDivision, readHostLocale, resolvePersonaLocale, renderExpertList, renderSummonResults, type LocaleId } from './i18n.js'
 import { installSettingsSectionCompat, settingsNamespaceCompat } from './settings-compat.js'
 import { registerPluginUpdater } from './plugin-updater.js'
 import { AGENCY_LIBRARY_SERVICE, agencySettingsSchema, createExpertLibrary, validateAgencySettings, type AgencySettings } from './expert-library.js'
@@ -495,6 +495,8 @@ export function apply(ctx: Context, config: Config): void {
   })
   const enabledSet = (): ReadonlySet<string> => new Set(settingsSource().enabled)
   const activeLocale = (): LocaleId => readHostLocale(ctx)
+  /** 召唤人设语言：显式锁定优先，否则跟随界面语言。 */
+  const personaLocale = (): LocaleId => resolvePersonaLocale(settingsSource().personaLocale, activeLocale())
   const catalogRoot = resolveCatalogRoot(config.root)
   const basePersonaSource = createAgencyPersonaSource(catalogRoot, config.divisions, async () => { await ensureReady(); return experts; })
   let experts = new Map<string, Expert>()
@@ -598,7 +600,7 @@ export function apply(ctx: Context, config: Config): void {
     if (maxDepth !== undefined && !provider.capabilities.depthLimit) throw new Error(formatHost(locale, 'error.providerNoMaxDepth', { provider: config.provider }))
     const expert = resolveExpert((await library.catalog()).experts.filter(expert => !expert.conflict), query, locale)
     if (!enabledSet().has(expert.slug)) throw new Error(formatHost(locale, 'error.expertDisabled', { name: localizedExpertName(expert, locale) }))
-    const { prompt: persona } = await personaSource.getPrompt(expert.slug, expert.division, locale)
+    const { prompt: persona } = await personaSource.getPrompt(expert.slug, expert.division, personaLocale())
     const run: SubagentRun = await ctx.subagents.start(config.provider, {
       label: `expert:${expert.slug}`,
       prompt: [{ type: 'text', text: taskText }],

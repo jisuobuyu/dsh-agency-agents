@@ -18,7 +18,7 @@ export const ZH_NAME: Readonly<Record<string, string>> = {
   'engineering-backend-architect-storage-cpp': '后端架构师（存储/C++）',
   'engineering-code-reviewer': '代码审查工程师',
   'engineering-data-engineer': '数据工程师',
-  'engineering-distributed-file-object-storage-engineer': '分布式文件与对象存储工程师',
+  'engineering-distributed-file-object-storage-engineer': '分布式存储工程师',
   'engineering-database-optimizer': '数据库性能工程师',
   'engineering-database-reliability-engineer': '数据库可靠性工程师',
   'engineering-incident-response-commander': '故障应急工程师',

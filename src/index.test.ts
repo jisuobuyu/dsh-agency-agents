@@ -12,7 +12,7 @@ import { AGENCY_AGENTS_DESCRIPTORS } from './remote-contract.js'
 import { buildExpertMentionLexicon, buildExpertReference, CARD_SETTINGS_CSS, compareExpertName, COPY_PROMPT_FEEDBACK_MS, EXPERT_AVATAR_POOL_INDEXES, expertAvatarIndex, expertAvatarIndexForDivision, expertDivisionFilterValues, expertMentionFromReference, filterExperts, formatExpertMention, formatExpertMentionInsertion, inject as clientInject, inputTriggerCandidateName, inputTriggerPickName, inputTriggerSourceId, inputTriggerSourceName, insertExpertReference, insertSelectedExpert, keepComposerFocus, matchExpertQuery, normalizeExpertQuery, pickHostSettingsTrigger, resolveExpertMenuPosition, resolveExpertToolbarClick, resolveReferenceInsertionTarget, SETTINGS_GITHUB_LINKS, sortExpertsByEnabled, sortExpertsByOrder, writeErrorKey, writeErrorMessage } from './client/index.js'
 import { en, zh, type AgencyKey } from './client/locales.js'
 import { ROSTER } from './client/roster.js'
-import { enHost, formatHost, matchDivision, readHostLocale, renderExpertList, renderSummonResults, resolveHostLocale, zhHost } from './i18n.js'
+import { enHost, formatHost, matchDivision, readHostLocale, resolvePersonaLocale, renderExpertList, renderSummonResults, resolveHostLocale, zhHost } from './i18n.js'
 import { TYPERT_REMOTE } from './client/remote.js'
 import { installSettingsSectionCompat, settingsNamespaceCompat } from './settings-compat.js'
 
@@ -25,11 +25,12 @@ const PACKAGE_MANIFEST = JSON.parse(await readFile(new URL('../package.json', im
   dsh?: { client?: { inject?: string[] } }
 }
 
-function alphaSettings(enabled: readonly string[], locale?: 'zh' | 'en') {
+function alphaSettings(enabled: readonly string[], locale?: 'zh' | 'en', personaLocale?: 'follow' | 'zh' | 'en') {
+  const agency = { enabled: [...enabled], ...(personaLocale === undefined ? {} : { personaLocale }) }
   return {
     describe: () => [{ ns: 'agency-agents', revision: 0 }],
     get: (namespace: string): unknown => {
-      if (namespace === 'agency-agents') return { enabled: [...enabled] }
+      if (namespace === 'agency-agents') return { ...agency, enabled: [...agency.enabled] }
       if (namespace === 'locale' && locale !== undefined) return { preference: locale }
       return undefined
     },
@@ -38,9 +39,9 @@ function alphaSettings(enabled: readonly string[], locale?: 'zh' | 'en') {
       _namespace: string,
       _schema: unknown,
       _entry: unknown,
-      hooks: { setSource(current: () => { enabled: string[] }): void; onChange(): void },
+      hooks: { setSource(current: () => { enabled: string[]; personaLocale?: string }): void; onChange(): void },
     ): void => {
-      hooks.setSource(() => ({ enabled: [...enabled] }))
+      hooks.setSource(() => ({ ...agency, enabled: [...agency.enabled] }))
       hooks.onChange()
     },
   }
@@ -419,8 +420,82 @@ describe('summon_expert', () => {
     await expect(summon.execute({ expert: '代码审查工程师', task: '审查这段代码' }, { agent: {} })).resolves.toEqual({ expert: '代码审查工程师', answer: 'done' })
 
     const displayed = await promptSource!.getPrompt('engineering-code-reviewer', 'engineering', 'zh')
-    expect(displayed.prompt).toContain('代码审查员')
+    expect(displayed.prompt).toContain('代码审查工程师')
     expect(startOptions?.persona).toBe(sanitize(displayed.prompt))
+  })
+
+  it('personaLocale 锁定英文时，中文界面召唤仍使用英文 persona', async () => {
+    const tools: unknown[] = []
+    let startOptions: Record<string, unknown> | undefined
+    let promptSource: { getPrompt(slug: string, division: string, locale: 'zh' | 'en'): Promise<{ prompt: string }> } | undefined
+    const ctx = {
+      tools: { register: (tool: unknown) => tools.push(tool) },
+      subagents: {
+        getProvider: () => ({ capabilities: { persona: true, toolFilter: true, depthLimit: true } }),
+        start: async (_provider: string, options: Record<string, unknown>) => {
+          startOptions = options
+          return {
+            result: Promise.resolve({ output: [{ type: 'text', text: 'done' }], stopReason: 'completed' }),
+            dispose: async () => undefined,
+          }
+        },
+      },
+      systemPrompt: { section: () => undefined },
+      settings: alphaSettings(['engineering-code-reviewer'], 'zh', 'en'),
+      inject: (_deps: unknown, cb: (sctx: unknown) => void) => {
+        cb({ settings: { register: () => ({ get: () => ({ enabled: ['engineering-code-reviewer'] }), watch: () => () => {} }) }, effect: () => () => {} })
+      },
+      reflect: {
+        provide: (name: string, value: unknown) => {
+          if (name === 'agencyAgentsPersona') promptSource = value as typeof promptSource
+          return undefined
+        },
+      },
+    } as unknown as Context
+
+    apply(ctx, { root: '', provider: 'spawn', divisions: ['engineering'] })
+    const summon = tools.find((tool) => (tool as { name?: string }).name === 'summon_expert') as {
+      execute: (args: unknown, exec: unknown) => Promise<unknown>
+    }
+    // 界面仍为中文：按中文名召唤、结果名仍是中文
+    await expect(summon.execute({ expert: '代码审查工程师', task: '审查这段代码' }, { agent: {} })).resolves.toEqual({ expert: '代码审查工程师', answer: 'done' })
+
+    const enPrompt = await promptSource!.getPrompt('engineering-code-reviewer', 'engineering', 'en')
+    const zhPrompt = await promptSource!.getPrompt('engineering-code-reviewer', 'engineering', 'zh')
+    expect(enPrompt.prompt).toContain('Code Reviewer')
+    expect(startOptions?.persona).toBe(sanitize(enPrompt.prompt))
+    expect(startOptions?.persona).not.toBe(sanitize(zhPrompt.prompt))
+  })
+
+  it('personaLocale 默认 follow 时，召唤语言跟随界面语言', async () => {
+    const tools: unknown[] = []
+    let startOptions: Record<string, unknown> | undefined
+    const ctx = {
+      tools: { register: (tool: unknown) => tools.push(tool) },
+      subagents: {
+        getProvider: () => ({ capabilities: { persona: true, toolFilter: true, depthLimit: true } }),
+        start: async (_provider: string, options: Record<string, unknown>) => {
+          startOptions = options
+          return {
+            result: Promise.resolve({ output: [{ type: 'text', text: 'done' }], stopReason: 'completed' }),
+            dispose: async () => undefined,
+          }
+        },
+      },
+      systemPrompt: { section: () => undefined },
+      settings: alphaSettings(['engineering-code-reviewer'], 'en', 'follow'),
+      inject: (_deps: unknown, cb: (sctx: unknown) => void) => {
+        cb({ settings: { register: () => ({ get: () => ({ enabled: ['engineering-code-reviewer'] }), watch: () => () => {} }) }, effect: () => () => {} })
+      },
+      reflect: { provide: () => undefined },
+    } as unknown as Context
+
+    apply(ctx, { root: '', provider: 'spawn', divisions: ['engineering'] })
+    const summon = tools.find((tool) => (tool as { name?: string }).name === 'summon_expert') as {
+      execute: (args: unknown, exec: unknown) => Promise<unknown>
+    }
+    await expect(summon.execute({ expert: 'Code Reviewer', task: 'review this code' }, { agent: {} })).resolves.toEqual({ expert: 'Code Reviewer', answer: 'done' })
+    expect(String(startOptions?.persona)).toContain('Code Reviewer')
   })
 
   it('只向父会话注入花名册协议', () => {
@@ -716,6 +791,8 @@ describe('AgencyAgentsRemote（Host↔Client 读写链路）', () => {
     const endpoints = TYPERT_REMOTE.descriptors.map((d) => `${d.namespace}/${d.method}`)
     expect(endpoints).toContain('agencyAgents/getEnabled')
     expect(endpoints).toContain('agencyAgents/setEnabled')
+    expect(endpoints).toContain('agencyAgents/getPersonaLocale')
+    expect(endpoints).toContain('agencyAgents/setPersonaLocale')
     expect(endpoints).toContain('agencyAgents/getPrompt')
     for (const d of TYPERT_REMOTE.descriptors) {
       expect(d.service).toBe('agencyAgents')
@@ -726,6 +803,8 @@ describe('AgencyAgentsRemote（Host↔Client 读写链路）', () => {
     expect(TYPERT_REMOTE.descriptors).toBe(AGENCY_AGENTS_DESCRIPTORS)
     expect(setEnabled?.parameters.map((p) => p.wire)).toEqual(['enabled', 'expectedRevision'])
     expect(getPrompt?.parameters.map((p) => p.wire)).toEqual(['slug', 'division'])
+    const setPersonaLocale = TYPERT_REMOTE.descriptors.find((d) => d.method === 'setPersonaLocale')
+    expect(setPersonaLocale?.parameters.map((p) => p.wire)).toEqual(['personaLocale', 'expectedRevision'])
   })
 })
 
@@ -747,6 +826,15 @@ describe('宿主 i18n', () => {
         throw new Error('cannot get property "settings" without inject')
       },
     })).toBe('zh')
+  })
+
+  it('resolvePersonaLocale：显式锁定优先，其余跟随界面语言', () => {
+    expect(resolvePersonaLocale('en', 'zh')).toBe('en')
+    expect(resolvePersonaLocale('zh', 'en')).toBe('zh')
+    expect(resolvePersonaLocale('follow', 'zh')).toBe('zh')
+    expect(resolvePersonaLocale('follow', 'en')).toBe('en')
+    expect(resolvePersonaLocale(undefined, 'zh')).toBe('zh')
+    expect(resolvePersonaLocale('fr', 'en')).toBe('en')
   })
 
   it('中英词条占位符一致，筛选空态跟随「全部」译文', () => {
@@ -911,11 +999,11 @@ describe('expertAvatarIndex', () => {
   })
 
   it('36 张头像按五大分类完整且不重复分配', () => {
-    expect(EXPERT_AVATAR_POOL_INDEXES.development).toHaveLength(12)
-    expect(EXPERT_AVATAR_POOL_INDEXES.writing).toHaveLength(8)
+    expect(EXPERT_AVATAR_POOL_INDEXES.development).toHaveLength(16)
+    expect(EXPERT_AVATAR_POOL_INDEXES.writing).toHaveLength(6)
     expect(EXPERT_AVATAR_POOL_INDEXES.product).toHaveLength(6)
-    expect(EXPERT_AVATAR_POOL_INDEXES.research).toHaveLength(6)
-    expect(EXPERT_AVATAR_POOL_INDEXES.design).toHaveLength(4)
+    expect(EXPERT_AVATAR_POOL_INDEXES.research).toHaveLength(5)
+    expect(EXPERT_AVATAR_POOL_INDEXES.design).toHaveLength(3)
 
     const indexes = Object.values(EXPERT_AVATAR_POOL_INDEXES).flat()
     expect(indexes).toHaveLength(36)

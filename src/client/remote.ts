@@ -23,10 +23,19 @@ export interface AgencyAgentsPrompt {
   readonly prompt: string
 }
 
+export type AgencyPersonaLocale = 'follow' | 'zh' | 'en'
+
+export interface AgencyAgentsPersonaLocaleState {
+  readonly personaLocale: AgencyPersonaLocale
+  readonly revision: number
+}
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespace$agencyAgents extends AgencyCatalogRemote {
     getEnabled: () => Promise<RemoteResult<AgencyAgentsEnabledState>>
     setEnabled: (enabled: string[], expectedRevision: number) => Promise<RemoteResult<AgencyAgentsEnabledState>>
+    getPersonaLocale: () => Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
+    setPersonaLocale: (personaLocale: AgencyPersonaLocale, expectedRevision: number) => Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
     getPrompt: (slug: string, division: string) => Promise<RemoteResult<AgencyAgentsPrompt>>
   }
   interface TypertRemoteMap {
@@ -36,6 +45,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'agencyAgents/deleteCustomExpert': AgencyCatalogRemote['deleteCustomExpert']
     'agencyAgents/getEnabled': () => Promise<RemoteResult<AgencyAgentsEnabledState>>
     'agencyAgents/setEnabled': (enabled: string[], expectedRevision: number) => Promise<RemoteResult<AgencyAgentsEnabledState>>
+    'agencyAgents/getPersonaLocale': () => Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
+    'agencyAgents/setPersonaLocale': (personaLocale: AgencyPersonaLocale, expectedRevision: number) => Promise<RemoteResult<AgencyAgentsPersonaLocaleState>>
     'agencyAgents/getPrompt': (slug: string, division: string) => Promise<RemoteResult<AgencyAgentsPrompt>>
   }
   interface TypertRemoteNamespaceMap {
