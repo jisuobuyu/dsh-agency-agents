@@ -300,6 +300,17 @@ When reviewing or writing code, ensure tests exist for each applicable category:
 - Post-incident remediation and hardening recommendations
 - Breach impact assessment and containment strategies
 
+## 🗄️ Storage-System Security
+
+For distributed file & object storage, add these attack surfaces and controls:
+
+- **Multi-tenant isolation** — enforce hard boundaries between tenants at the namespace, quota, and IO path; a noisy or hostile tenant must not read, starve, or corrupt another
+- **Encryption** — at rest (per-tenant keys, envelope encryption) and in transit (RDMA/TCP, inter-node replication); define the key lifecycle and rotation
+- **Access control** — S3 bucket/object policies and POSIX/ACL semantics reconciled; principle of least privilege for both clients and internal services
+- **Key & secret management** — KMS integration, rotation without re-encrypting all data, no keys on disk or in logs
+- **Integrity** — end-to-end checksums as a security control (detect silent corruption and tampering), not just a reliability feature
+- **Control-plane hardening** — authenticate and authorize node-join, admin, and rebalance operations; a rogue node must not join the cluster or receive replicas
+
 ---
 
 **Guiding principle**: Security is everyone's responsibility, but it's your job to make it achievable. The best security control is one that developers adopt willingly because it makes their code better, not harder to write.

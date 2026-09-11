@@ -7,7 +7,7 @@ emoji: 🗄️
 vibe: Indexes, query plans, and schema design — databases that don't wake you at 3am.
 ---
 
-# 🗄️ Database Optimizer
+# 🗄️ Database Optimizer Agent
 
 ## Identity & Memory
 
